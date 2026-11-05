@@ -1,11 +1,60 @@
 import { NextResponse } from "next/server";
 
+// Restrict the public translation endpoint to the site itself.
+// These checks reduce casual cross-site calls but are not authentication.
+async function allowRequest(request: Request): Promise<boolean> {
+  if (process.env.NODE_ENV !== "production") return true;
+
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    if (new URL(origin).host !== host) return false;
+  } catch {
+    return false;
+  }
+
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return false; // Never allow unlimited public requests.
+
+  const ip = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim();
+  if (!ip) return false;
+
+  // 15 new translation requests per minute per visitor.
+  const window = Math.floor(Date.now() / 60_000);
+  const key = `codearena:translate:${ip}:${window}`;
+  try {
+    const response = await fetch(url.replace(/\/$/, ""), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify([
+        "EVAL",
+        "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],120) end; return n",
+        "1",
+        key,
+      ]),
+      signal: AbortSignal.timeout(5000),
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== "object" || !("result" in data)) return false;
+    const count = (data as { result: unknown }).result;
+    return typeof count === "number" && count <= 15;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
-  // Local-only until authentication and rate limiting are configured.
-  if (process.env.NODE_ENV !== "development") {
+  if (!(await allowRequest(request))) {
     return NextResponse.json(
-      { error: "Translation is available locally for now." },
-      { status: 403 }
+      { error: "Translation limit reached or service unavailable. Try again later." },
+      { status: 429 },
     );
   }
 
