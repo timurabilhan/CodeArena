@@ -104,7 +104,6 @@ export async function POST(request: Request) {
           generationConfig: {
   temperature: 0,
   maxOutputTokens: 4096,
-  thinkingConfig: { thinkingBudget: 0 },
 },
         }),
         signal: AbortSignal.timeout(25000),
