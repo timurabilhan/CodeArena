@@ -38,9 +38,10 @@ async function enforceRateLimit(request: Request): Promise<boolean> {
     if (!data || typeof data !== "object" || !("result" in data)) return false;
     const count = (data as { result: unknown }).result;
     return typeof count === "number" && count <= LIMIT;
-  } catch {
-    return false;
-  }
+  } catch (error) {
+  console.error("Redis connection error:", error);
+  return false;
+}
 }
 
 export async function POST(request: Request) {
