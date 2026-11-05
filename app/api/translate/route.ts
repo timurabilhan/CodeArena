@@ -101,7 +101,11 @@ export async function POST(request: Request) {
             }],
           },
           contents: [{ role: "user", parts: [{ text }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 8192 },
+          generationConfig: {
+  temperature: 0,
+  maxOutputTokens: 4096,
+  thinkingConfig: { thinkingBudget: 0 },
+},
         }),
         signal: AbortSignal.timeout(25000),
         cache: "no-store",
