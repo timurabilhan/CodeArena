@@ -11,6 +11,7 @@ async function enforceRateLimit(request: Request): Promise<boolean> {
   if (!redisUrl || !redisToken) return false; // Fail closed if not configured.
 
   // Vercel sets x-vercel-forwarded-for. Do not trust arbitrary x-forwarded-for.
+  console.log("IP header present:", request.headers.has("x-vercel-forwarded-for"));
   const forwarded = request.headers.get("x-vercel-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim();
   if (!ip) return false;
