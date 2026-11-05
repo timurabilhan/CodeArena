@@ -30,7 +30,10 @@ async function enforceRateLimit(request: Request): Promise<boolean> {
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    if (!response.ok) return false;
+    if (!response.ok) {
+  console.log("Redis HTTP status:", response.status);
+  return false;
+}
     const data: unknown = await response.json();
     if (!data || typeof data !== "object" || !("result" in data)) return false;
     const count = (data as { result: unknown }).result;
